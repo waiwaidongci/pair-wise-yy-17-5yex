@@ -17,6 +17,24 @@
       "history": [
         { "at": "2026-06-14T08:00:00.000Z", "action": "创建", "note": "样点建档" }
       ]
+    },
+    {
+      "id": "site-seed-2",
+      "cave": "北麓三号洞",
+      "zone": "滴水帘区",
+      "pointCode": "D-07B",
+      "route": "西线巡测",
+      "sensitivity": "中",
+      "protectedStatus": "常规观察",
+      "baselineTemp": 16.4,
+      "baselineHumidity": 90,
+      "baselineCo2": 700,
+      "note": "与 D-07 判定为同一处滴水点，待归并",
+      "createdAt": "2026-07-02T08:00:00.000Z",
+      "updatedAt": "2026-07-02T08:00:00.000Z",
+      "history": [
+        { "at": "2026-07-02T08:00:00.000Z", "action": "创建", "note": "样点建档" }
+      ]
     }
   ],
   "surveys": [
@@ -37,6 +55,41 @@
       "updatedAt": "2026-06-18T10:00:00.000Z",
       "history": [
         { "at": "2026-06-18T10:00:00.000Z", "action": "创建", "note": "CO2升高并有干扰痕迹" }
+      ]
+    },
+    {
+      "id": "survey-seed-2",
+      "siteId": "site-seed-2",
+      "surveyor": "何岚",
+      "date": "2026-09-12",
+      "temperature": 16.6,
+      "humidity": 91,
+      "co2": 705,
+      "dripRate": 11,
+      "disturbance": "",
+      "photoUrl": "",
+      "status": "正常",
+      "reviewNote": "",
+      "createdAt": "2026-09-12T10:00:00.000Z",
+      "updatedAt": "2026-09-12T10:00:00.000Z",
+      "history": [
+        { "at": "2026-09-12T10:00:00.000Z", "action": "创建", "note": "例行巡测" }
+      ]
+    }
+  ],
+  "merges": [
+    {
+      "id": "merge-seed-1",
+      "title": "D-07 归并方案",
+      "keepSiteId": "site-seed-1",
+      "mergeSiteIds": ["site-seed-2"],
+      "effectiveDate": "2026-10-01",
+      "note": "D-07B 与 D-07 判定为同一处滴水点",
+      "status": "待生效",
+      "createdAt": "2026-09-20T09:00:00.000Z",
+      "updatedAt": "2026-09-20T09:00:00.000Z",
+      "history": [
+        { "at": "2026-09-20T09:00:00.000Z", "action": "创建方案", "note": "保留 D-07，并入 D-07B" }
       ]
     }
   ]

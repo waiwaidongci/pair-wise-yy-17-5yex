@@ -309,6 +309,59 @@ main {
   border-radius: 8px;
 }
 
+.merge-sites > span {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.check-list {
+  display: grid;
+  gap: 6px;
+  max-height: 180px;
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #fff;
+  padding: 10px;
+}
+
+.check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--ink);
+  font-weight: 400;
+}
+
+.check input {
+  width: auto;
+}
+
+.actions input[type='date'] {
+  width: auto;
+}
+
+.affected {
+  margin-top: 10px;
+  display: grid;
+  gap: 6px;
+}
+
+.affected-item {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  background: #f7f3eb;
+  border-radius: 6px;
+  padding: 8px 10px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
 .toast {
   position: fixed;
   right: 20px;

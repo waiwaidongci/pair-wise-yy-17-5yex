@@ -6,13 +6,16 @@ module.exports = {
     '常规观察': 'ok',
     '正常': 'ok',
     '已复查': 'ok',
+    '已生效': 'ok',
     '重点保护': 'warn',
+    '待生效': 'warn',
     '异常待复查': 'bad',
     '暂停开放': 'bad'
   },
   collections: {
     sites: { label: '样点档案' },
-    surveys: { label: '巡测记录' }
+    surveys: { label: '巡测记录' },
+    merges: { label: '归并方案' }
   },
   stats: [
     { label: '样点', collection: 'sites' },
@@ -66,8 +69,8 @@ module.exports = {
       formTitle: '登记巡测',
       listTitle: '巡测历史',
       submitLabel: '保存巡测',
-      searchPlaceholder: '搜索人员、干扰痕迹、照片',
-      searchFields: ['surveyor', 'disturbance', 'photoUrl'],
+      searchPlaceholder: '搜索人员、干扰痕迹、照片、原编号',
+      searchFields: ['surveyor', 'disturbance', 'photoUrl', 'originalPointCode'],
       statusField: 'status',
       statusOptions: ['正常', '异常待复查', '已复查'],
       titleFields: ['surveyor', 'date'],
@@ -76,7 +79,8 @@ module.exports = {
       detailFields: [
         { label: '温度', name: 'temperature' },
         { label: '湿度', name: 'humidity' },
-        { label: 'CO2', name: 'co2' }
+        { label: 'CO2', name: 'co2' },
+        { label: '原样点编号', name: 'originalPointCode' }
       ],
       defaults: { status: '正常', reviewNote: '' },
       fields: [
@@ -90,6 +94,14 @@ module.exports = {
         { label: '照片链接', name: 'photoUrl' },
         { label: '游客干扰痕迹', name: 'disturbance', type: 'textarea', wide: true }
       ]
+    },
+    {
+      id: 'merges',
+      label: '样点归并',
+      type: 'merges',
+      formTitle: '新建归并方案',
+      listTitle: '归并方案',
+      submitLabel: '保存方案'
     }
   ],
   actions: [
