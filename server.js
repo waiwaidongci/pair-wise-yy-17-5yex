@@ -1,14 +1,18 @@
 const express = require('express');
 const fs = require('fs/promises');
 const path = require('path');
+const mergeDomain = require('./mergeDomain');
 
 const app = express();
 const config = require('./project.config');
 const PORT = process.env.PORT || config.port || 3900;
-const DB_FILE = path.join(__dirname, 'data', 'db.json');
+const DB_FILE = process.env.DB_FILE || path.join(__dirname, 'data', 'db.json');
+const MERGE_COLLECTION = 'siteMerges';
 
 app.use(express.json({ limit: '2mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
+// 判断层脚本共享给页面（与存档层同一份逻辑）
+app.get('/mergeDomain.js', (req, res) => res.sendFile(path.join(__dirname, 'mergeDomain.js')));
 
 async function readDb() {
   const raw = await fs.readFile(DB_FILE, 'utf8');
@@ -31,15 +35,41 @@ function sortNewest(a, b) {
   return new Date(b.updatedAt || b.createdAt || 0) - new Date(a.updatedAt || a.createdAt || 0);
 }
 
+function sortByEffectiveDate(a, b) {
+  const byDate = String(a.effectiveDate || '').localeCompare(String(b.effectiveDate || ''));
+  if (byDate !== 0) return byDate;
+  return String(a.createdAt || '').localeCompare(String(b.createdAt || ''));
+}
+
+// 存档层：到期方案结算为「已生效」，返回是否有变更（不写库，由调用方落盘）
+function settleMerges(db) {
+  const changes = mergeDomain.settleDuePlans(db);
+  if (!changes.length) return false;
+  const now = new Date().toISOString();
+  for (const change of changes) {
+    const plan = db[MERGE_COLLECTION].find((entry) => entry.id === change.id);
+    if (!plan) continue;
+    plan.status = change.to;
+    plan.activatedAt = now;
+    plan.updatedAt = now;
+    plan.history = plan.history || [];
+    plan.history.unshift(stamp('归并生效', `生效日期 ${plan.effectiveDate} 到期，新巡测写入保留样点`));
+  }
+  return true;
+}
+
 app.get('/api/config', (req, res) => {
   res.json(config);
 });
 
 app.get('/api/db', async (req, res) => {
   const db = await readDb();
+  const settled = settleMerges(db);
   for (const key of Object.keys(db)) {
-    if (Array.isArray(db[key])) db[key].sort(sortNewest);
+    if (!Array.isArray(db[key])) continue;
+    db[key].sort(key === MERGE_COLLECTION ? sortByEffectiveDate : sortNewest);
   }
+  if (settled) await writeDb(db);
   res.json(db);
 });
 
@@ -47,7 +77,29 @@ app.post('/api/:collection', async (req, res) => {
   const db = await readDb();
   const { collection } = req.params;
   if (!Array.isArray(db[collection])) return res.status(404).json({ error: 'unknown collection' });
+  settleMerges(db);
   const now = new Date().toISOString();
+
+  if (collection === MERGE_COLLECTION) {
+    const check = mergeDomain.validatePlan(db, req.body, { now: new Date() });
+    if (!check.ok) return res.status(409).json({ error: check.error, conflicts: check.conflicts || [] });
+    const item = {
+      id: `${collection}-${Date.now()}-${Math.random().toString(16).slice(2, 7)}`,
+      keepSiteId: req.body.keepSiteId,
+      mergeSiteIds: req.body.mergeSiteIds,
+      effectiveDate: req.body.effectiveDate,
+      note: req.body.note || '',
+      status: '待生效',
+      createdAt: now,
+      updatedAt: now,
+      history: [stamp('创建归并方案', `生效日期 ${req.body.effectiveDate}`)]
+    };
+    db[MERGE_COLLECTION].push(item);
+    db[MERGE_COLLECTION] = mergeDomain.reorderPending(db[MERGE_COLLECTION]);
+    await writeDb(db);
+    return res.status(201).json(item);
+  }
+
   const item = {
     id: `${collection}-${Date.now()}-${Math.random().toString(16).slice(2, 7)}`,
     ...req.body,
@@ -55,6 +107,18 @@ app.post('/api/:collection', async (req, res) => {
     updatedAt: now,
     history: [stamp('创建', req.body.note || req.body.memo || '')]
   };
+  if (collection === 'surveys') {
+    // 归并已生效：新巡测写入保留样点，原编号留在 mergedFromSiteId 供回查
+    const resolved = mergeDomain.resolveSurveySite(db, item.siteId, item.date);
+    if (resolved.merged) {
+      const original = db.sites.find((site) => site.id === resolved.originalSiteId);
+      item.siteId = resolved.siteId;
+      item.mergedFromSiteId = resolved.originalSiteId;
+      item.history.unshift(
+        stamp('样点归并', `原样点 ${original?.pointCode || resolved.originalSiteId} 已并入，本记录写入保留样点`)
+      );
+    }
+  }
   db[collection].push(item);
   await writeDb(db);
   res.status(201).json(item);
@@ -64,14 +128,46 @@ app.patch('/api/:collection/:id', async (req, res) => {
   const db = await readDb();
   const { collection, id } = req.params;
   if (!Array.isArray(db[collection])) return res.status(404).json({ error: 'unknown collection' });
+  settleMerges(db);
   const item = db[collection].find((entry) => entry.id === id);
   if (!item) return res.status(404).json({ error: 'not found' });
   const historyAction = req.body.historyAction;
   delete req.body.historyAction;
+
+  if (collection === MERGE_COLLECTION) {
+    // 方案三要素（保留样点/待并入样点/生效日期）仅在待生效时可改，且需通过占用校验
+    const shapeTouched =
+      req.body.keepSiteId !== undefined ||
+      req.body.mergeSiteIds !== undefined ||
+      (req.body.effectiveDate !== undefined && req.body.effectiveDate !== item.effectiveDate);
+    if (shapeTouched) {
+      if (item.status !== '待生效') {
+        return res.status(409).json({ error: `方案已${item.status}，归并内容不可再改` });
+      }
+      const check = mergeDomain.validatePlan(
+        db,
+        {
+          keepSiteId: req.body.keepSiteId ?? item.keepSiteId,
+          mergeSiteIds: req.body.mergeSiteIds ?? item.mergeSiteIds,
+          effectiveDate: req.body.effectiveDate ?? item.effectiveDate
+        },
+        { now: new Date(), excludePlanId: item.id }
+      );
+      if (!check.ok) return res.status(409).json({ error: check.error, conflicts: check.conflicts || [] });
+      if (req.body.effectiveDate && req.body.effectiveDate !== item.effectiveDate) {
+        item.history = item.history || [];
+        item.history.unshift(stamp('调整生效日期', `${item.effectiveDate} → ${req.body.effectiveDate}，待执行方案已重排`));
+      }
+    }
+  }
+
   Object.assign(item, req.body, { updatedAt: new Date().toISOString() });
   item.history = item.history || [];
   if (historyAction || req.body.note || req.body.memo || req.body.status) {
     item.history.unshift(stamp(historyAction || req.body.status || '更新', req.body.note || req.body.memo || ''));
+  }
+  if (collection === MERGE_COLLECTION) {
+    db[MERGE_COLLECTION] = mergeDomain.reorderPending(db[MERGE_COLLECTION]);
   }
   await writeDb(db);
   res.json(item);
@@ -98,6 +194,15 @@ app.post('/api/action/:actionId/:id', async (req, res) => {
   if (result.error) return res.status(409).json({ error: result.error });
   await writeDb(db);
   res.json(result.item);
+});
+
+// 查看某归并方案受影响的巡测记录
+app.get('/api/site-merges/:id/affected', async (req, res) => {
+  const db = await readDb();
+  if (settleMerges(db)) await writeDb(db);
+  const plan = (db[MERGE_COLLECTION] || []).find((entry) => entry.id === req.params.id);
+  if (!plan) return res.status(404).json({ error: 'not found' });
+  res.json(mergeDomain.affectedSurveys(db, plan));
 });
 
 function getValue(source, pathName) {

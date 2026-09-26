@@ -309,6 +309,80 @@ main {
   border-radius: 8px;
 }
 
+/* 样点归并 */
+.merge-pick {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 10px;
+  display: grid;
+  gap: 10px;
+}
+
+.merge-pick legend {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+  padding: 0 4px;
+}
+
+.merge-picked {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--panel-2);
+  border-radius: 999px;
+  padding: 5px 10px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.chip-x {
+  background: transparent;
+  color: var(--muted);
+  padding: 0 2px;
+  font-size: 15px;
+  line-height: 1;
+}
+
+.merge-list {
+  margin: 8px 0 0;
+  padding-left: 18px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.8;
+}
+
+.date-edit {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+  margin-top: 10px;
+  align-items: center;
+}
+
+.affected {
+  margin-top: 10px;
+  border-top: 1px dashed var(--line);
+  padding-top: 10px;
+  display: grid;
+  gap: 8px;
+}
+
+.affected-row {
+  display: grid;
+  grid-template-columns: 100px 90px 1fr auto;
+  gap: 10px;
+  align-items: center;
+  font-size: 13px;
+  color: var(--muted);
+}
+
 .toast {
   position: fixed;
   right: 20px;
@@ -357,6 +431,10 @@ main {
   }
 
   .history-item {
+    grid-template-columns: 1fr;
+  }
+
+  .affected-row {
     grid-template-columns: 1fr;
   }
 }

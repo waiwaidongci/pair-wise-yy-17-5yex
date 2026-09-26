@@ -6,19 +6,24 @@ module.exports = {
     '常规观察': 'ok',
     '正常': 'ok',
     '已复查': 'ok',
+    '已生效': 'ok',
     '重点保护': 'warn',
+    '待生效': 'warn',
     '异常待复查': 'bad',
-    '暂停开放': 'bad'
+    '暂停开放': 'bad',
+    '已撤销': 'bad'
   },
   collections: {
     sites: { label: '样点档案' },
-    surveys: { label: '巡测记录' }
+    surveys: { label: '巡测记录' },
+    siteMerges: { label: '归并方案' }
   },
   stats: [
     { label: '样点', collection: 'sites' },
     { label: '重点保护', collection: 'sites', filter: { field: 'protectedStatus', value: '重点保护' } },
     { label: '巡测记录', collection: 'surveys' },
-    { label: '待复查', collection: 'surveys', filter: { field: 'status', value: '异常待复查' } }
+    { label: '待复查', collection: 'surveys', filter: { field: 'status', value: '异常待复查' } },
+    { label: '待执行归并', collection: 'siteMerges', filter: { field: 'status', value: '待生效' } }
   ],
   views: [
     {
@@ -90,6 +95,18 @@ module.exports = {
         { label: '照片链接', name: 'photoUrl' },
         { label: '游客干扰痕迹', name: 'disturbance', type: 'textarea', wide: true }
       ]
+    },
+    {
+      id: 'merges',
+      label: '样点归并',
+      type: 'merge',
+      collection: 'siteMerges',
+      formTitle: '新建归并方案',
+      listTitle: '归并方案（按生效日期排序）',
+      submitLabel: '保存归并方案',
+      searchPlaceholder: '搜索样点编号、洞穴、备注',
+      statusField: 'status',
+      statusOptions: ['待生效', '已生效', '已撤销']
     }
   ],
   actions: [
@@ -106,6 +123,14 @@ module.exports = {
         { target: 'related', field: 'protectedStatus', value: '重点保护' }
       ]
     },
-    { id: 'survey-review', label: '完成复查', collection: 'surveys', patches: [{ field: 'status', value: '已复查' }, { field: 'reviewNote', value: '异常已复核' }] }
+    { id: 'survey-review', label: '完成复查', collection: 'surveys', patches: [{ field: 'status', value: '已复查' }, { field: 'reviewNote', value: '异常已复核' }] },
+    {
+      id: 'merge-cancel',
+      label: '撤销方案',
+      collection: 'siteMerges',
+      danger: true,
+      guards: [{ left: 'item.status', op: 'eq', right: '待生效', message: '仅待生效方案可撤销' }],
+      patches: [{ field: 'status', value: '已撤销' }]
+    }
   ]
 };
